@@ -8,7 +8,7 @@ pygame.init()
 # Screen Setup
 WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Snake 2.1 - Perfect Grid Edition")
+pygame.display.set_caption("Snake 2.1 Prestige Edition")
 
 # Colors
 BLACK = (0, 0, 0)
@@ -19,8 +19,9 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 PURPLE = (160, 32, 240)
 CYAN = (0, 255, 255)
+ORANGE = (255, 165, 0)
+PINK = (255, 105, 180)
 
-# Fonts
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 40)
 small_font = pygame.font.SysFont("Arial", 30)
@@ -50,7 +51,7 @@ def get_aligned_pos(block_size, snake, food_positions):
             return (x, y)
 
 def snap_snake_to_grid(snake, block_size):
-    return [((x // block_size) * block_size, (y // block_size) * block_size) for (x,y) in snake]
+    return [((x // block_size) * block_size, (y // block_size) * block_size) for (x, y) in snake]
 
 def spawn_all_foods(block_size, snake, extra_food):
     food_positions = []
@@ -59,7 +60,7 @@ def spawn_all_foods(block_size, snake, extra_food):
         food_positions.append(pos)
     return food_positions
 
-def shop_menu(soin, snips, speed, snake_color, block_size, extra_food, score_multiplier):
+def shop_menu(soin, snips, sointes, speed, snake_color, block_size, extra_food, score_multiplier, perm_snip_multi, perm_sointe_multi):
     block_size_changed = False
     shop_running = True
 
@@ -71,30 +72,47 @@ def shop_menu(soin, snips, speed, snake_color, block_size, extra_food, score_mul
         {"name": "Increase Block Size (+5)", "cost": 8},
         {"name": "Decrease Block Size (-5)", "cost": 8},
         {"name": "Decrease Speed (-2)", "cost": 8},
+        {"name": "Perm Snip Multi", "cost": 16},
     ]
     snip_options = [
         {"name": "+1 Extra Food on Map", "cost": 2},
         {"name": "+1 Score Multiplier", "cost": 3},
+        {"name": "Perm Sointe Multi", "cost": 6},
+    ]
+    sointe_options = [
+        {"name": "MEGA Block Size +25", "cost": 1},
+        {"name": "Rainbow Snake", "cost": 1},
+        {"name": "Ultra Speed Boost (+10)", "cost": 2},
+        {"name": "Massive Score Multiplier (+5)", "cost": 2},
+        {"name": "MEGA Speed Decrease (-10)", "cost": 1},
     ]
 
-    all_options = [{"type": "soin", **opt} for opt in soin_options] + \
-                  [{"type": "snip", **opt} for opt in snip_options] + \
-                  [{"type": "exit", "name": "Exit Shop", "cost": 0}]
+    all_left = [{"type": "soin", **opt} for opt in soin_options] + \
+               [{"type": "snip", **opt} for opt in snip_options] + \
+               [{"type": "exit", "name": "Exit Shop", "cost": 0}]
+
+    all_right = [{"type": "sointe", **opt} for opt in sointe_options]
 
     selected = 0
+    right_selected = 0
+    column = "left"
 
     while shop_running:
         screen.fill(BLACK)
-        draw_text("SHOP - Up/Down to select, Enter to buy", font, WHITE, (20, 20))
+        draw_text("SHOP - Arrows to Move, Enter to Buy", font, WHITE, (20, 20))
         draw_text(f"Soins: {soin}", font, YELLOW, (20, 80))
         draw_text(f"Snips: {snips}", font, CYAN, (20, 130))
+        draw_text(f"Sointes: {sointes}", font, ORANGE, (20, 180))
 
-        for i, option in enumerate(all_options):
-            color = WHITE
-            if i == selected:
-                color = BLUE
+        for i, option in enumerate(all_left):
+            color = BLUE if column == "left" and i == selected else WHITE
             label = f"{option['name']} - Cost: {option['cost']} {'Soins' if option['type']=='soin' else 'Snips' if option['type']=='snip' else ''}"
-            draw_text(label, small_font, color, (40, 200 + i * 50))
+            draw_text(label, small_font, color, (40, 250 + i * 40))
+
+        for i, option in enumerate(all_right):
+            color = BLUE if column == "right" and i == right_selected else WHITE
+            label = f"{option['name']} - Cost: {option['cost']} Sointes"
+            draw_text(label, small_font, color, (700, 250 + i * 40))
 
         pygame.display.flip()
 
@@ -103,55 +121,80 @@ def shop_menu(soin, snips, speed, snake_color, block_size, extra_food, score_mul
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    selected = (selected - 1) % len(all_options)
+                if event.key == pygame.K_LEFT:
+                    column = "left"
+                elif event.key == pygame.K_RIGHT:
+                    column = "right"
+                elif event.key == pygame.K_UP:
+                    if column == "left":
+                        selected = (selected - 1) % len(all_left)
+                    else:
+                        right_selected = (right_selected - 1) % len(all_right)
                 elif event.key == pygame.K_DOWN:
-                    selected = (selected + 1) % len(all_options)
+                    if column == "left":
+                        selected = (selected + 1) % len(all_left)
+                    else:
+                        right_selected = (right_selected + 1) % len(all_right)
                 elif event.key == pygame.K_RETURN:
-                    choice = all_options[selected]
-                    if choice["type"] == "exit":
-                        shop_running = False
-                    elif choice["type"] == "soin":
-                        if soin >= choice["cost"]:
-                            soin -= choice["cost"]
-                            if "Speed Boost" in choice["name"]:
-                                speed += 2
-                            elif "Blue" in choice["name"]:
-                                snake_color = BLUE
-                            elif "Yellow" in choice["name"]:
-                                snake_color = YELLOW
-                            elif "Purple" in choice["name"]:
-                                snake_color = PURPLE
-                            elif "Increase Block Size" in choice["name"] and block_size + 5 <= 80:
-                                block_size += 5
+                    if column == "left":
+                        choice = all_left[selected]
+                        if choice["type"] == "exit":
+                            shop_running = False
+                        elif choice["type"] == "soin":
+                            if soin >= choice["cost"]:
+                                soin -= choice["cost"]
+                                if "Speed Boost" in choice["name"]:
+                                    speed += 2
+                                elif "Blue" in choice["name"]:
+                                    snake_color = BLUE
+                                elif "Yellow" in choice["name"]:
+                                    snake_color = YELLOW
+                                elif "Purple" in choice["name"]:
+                                    snake_color = PURPLE
+                                elif "Increase Block Size" in choice["name"] and block_size + 5 <= 80:
+                                    block_size += 5
+                                    block_size_changed = True
+                                elif "Decrease Block Size" in choice["name"] and block_size - 5 >= 10:
+                                    block_size -= 5
+                                    block_size_changed = True
+                                elif "Decrease Speed" in choice["name"] and speed - 2 >= 2:
+                                    speed -= 2
+                                elif "Perm Snip Multi" in choice["name"]:
+                                    perm_snip_multi += 1
+                        elif choice["type"] == "snip":
+                            if snips >= choice["cost"]:
+                                snips -= choice["cost"]
+                                if "+1 Extra Food" in choice["name"]:
+                                    extra_food += 1
+                                    block_size_changed = True
+                                elif "+1 Score Multiplier" in choice["name"]:
+                                    score_multiplier += 1
+                                elif "Perm Sointe Multi" in choice["name"]:
+                                    perm_sointe_multi += 1
+                    else:
+                        choice = all_right[right_selected]
+                        if sointes >= choice["cost"]:
+                            sointes -= choice["cost"]
+                            if "MEGA Block Size" in choice["name"] and block_size + 25 <= 100:
+                                block_size += 25
                                 block_size_changed = True
-                            elif "Decrease Block Size" in choice["name"] and block_size - 5 >= 10:
-                                block_size -= 5
-                                block_size_changed = True
-                            elif "Decrease Speed" in choice["name"] and speed - 2 >= 2:
-                                speed -= 2
-                    elif choice["type"] == "snip":
-                        if snips >= choice["cost"]:
-                            snips -= choice["cost"]
-                            if "+1 Extra Food" in choice["name"]:
-                                extra_food += 1
-                                block_size_changed = True
-                            elif "+1 Score Multiplier" in choice["name"]:
-                                score_multiplier += 1
+                            elif "Rainbow Snake" in choice["name"]:
+                                snake_color = PINK
+                            elif "Ultra Speed Boost" in choice["name"]:
+                                speed += 10
+                            elif "Massive Score Multiplier" in choice["name"]:
+                                score_multiplier += 5
+                            elif "MEGA Speed Decrease" in choice["name"]:
+                                speed = max(2, speed - 10)
 
         clock.tick(15)
-
-    return soin, snips, speed, snake_color, block_size, block_size_changed, extra_food, score_multiplier
-
-def game_over_screen(score, soin, snips):
+    return soin, snips, sointes, speed, snake_color, block_size, block_size_changed, extra_food, score_multiplier, perm_snip_multi, perm_sointe_multi
+def win_screen(sointes, perm_snip_multi, perm_sointe_multi):
     while True:
         screen.fill(BLACK)
-        draw_text("GAME OVER", font, RED, (WIDTH//2 - 200, HEIGHT//2 - 150))
-        draw_text(f"Final Score: {score}", font, WHITE, (WIDTH//2 - 200, HEIGHT//2 - 90))
-        draw_text(f"Soins Earned: {soin}", font, YELLOW, (WIDTH//2 - 200, HEIGHT//2 - 30))
-        draw_text(f"Snips Earned: {snips}", font, CYAN, (WIDTH//2 - 200, HEIGHT//2 + 30))
-        draw_text("Press R to Restart or Q to Quit", small_font, WHITE, (WIDTH//2 - 250, HEIGHT//2 + 100))
-
+        draw_text("YOU WIN!", font, GREEN, (WIDTH//2 - 150, HEIGHT//2 - 150))
+        draw_text(f"Sointes Earned: 1", font, ORANGE, (WIDTH//2 - 150, HEIGHT//2 - 90))
+        draw_text("Press P to Prestige or Q to Quit", small_font, WHITE, (WIDTH//2 - 250, HEIGHT//2 - 30))
         pygame.display.flip()
 
         for event in pygame.event.get():
@@ -159,13 +202,13 @@ def game_over_screen(score, soin, snips):
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    main()
+                if event.key == pygame.K_p:
+                    main(sointes + 1, perm_snip_multi, perm_sointe_multi)
                 elif event.key == pygame.K_q:
                     pygame.quit()
                     sys.exit()
 
-def main():
+def main(sointes=0, perm_snip_multi=0, perm_sointe_multi=0):
     snake_color = GREEN
     speed = 10
     block_size = BLOCK_SIZE
@@ -204,15 +247,14 @@ def main():
             last_soin_time = current_time
 
         if current_time - last_shop_time >= shop_interval:
-            soin, snips, speed, snake_color, block_size, block_size_changed, extra_food, score_multiplier = shop_menu(
-                soin, snips, speed, snake_color, block_size, extra_food, score_multiplier)
+            soin, snips, sointes, speed, snake_color, block_size, block_size_changed, extra_food, score_multiplier, perm_snip_multi, perm_sointe_multi = shop_menu(
+                soin, snips, sointes, speed, snake_color, block_size, extra_food, score_multiplier, perm_snip_multi, perm_sointe_multi)
             last_shop_time = time.time()
 
             if block_size_changed:
                 snake = snap_snake_to_grid(snake, block_size)
                 food_positions = spawn_all_foods(block_size, snake, extra_food)
 
-                # Correctly rescale direction based on current heading
                 if direction[0] > 0:
                     direction = (block_size, 0)
                     next_direction = (block_size, 0)
@@ -252,7 +294,6 @@ def main():
                         typed_chars.pop(0)
                     if ''.join(typed_chars) == "ball":
                         debug_mode = not debug_mode
-                        print(f"Debug mode {'ENABLED' if debug_mode else 'DISABLED'}")
 
         direction = next_direction
         new_head = (snake[0][0] + direction[0], snake[0][1] + direction[1])
@@ -273,12 +314,15 @@ def main():
                 score += 1 * score_multiplier
                 soin += 1
                 if food_eaten % 3 == 0:
-                    snips += 1
+                    snips += 1 * (perm_snip_multi + 1)
                 eaten = True
                 break
 
         if not eaten:
             snake.pop()
+
+        if score >= 100:
+            win_screen(sointes + (1 * (1 + perm_sointe_multi)), perm_snip_multi, perm_sointe_multi)
 
         if not debug_mode:
             if (
@@ -286,7 +330,8 @@ def main():
                 new_head[1] < 0 or new_head[1] >= max_y or
                 new_head in snake[1:]
             ):
-                running = False
+                pygame.quit()
+                sys.exit()
 
         screen.fill(BLACK)
         for segment in snake:
@@ -294,18 +339,12 @@ def main():
         for food_pos in food_positions:
             pygame.draw.rect(screen, RED, (*food_pos, block_size, block_size))
 
-        debug_text = "DEBUG MODE: ON" if debug_mode else "DEBUG MODE: OFF"
-        draw_text(debug_text, small_font, CYAN if debug_mode else WHITE, (WIDTH - 300, 10))
         draw_text(f"Score: {score}", font, WHITE, (10, 10))
         draw_text(f"Soins: {soin}", font, YELLOW, (10, 60))
         draw_text(f"Snips: {snips}", font, CYAN, (10, 110))
-        draw_text(f"Speed: {speed}", font, WHITE, (10, 160))
-        draw_text(f"Block Size: {block_size}", small_font, WHITE, (10, 210))
-        draw_text(f"Extra Food on Map: {extra_food}", small_font, WHITE, (10, 260))
+        draw_text(f"Sointes: {sointes}", font, ORANGE, (10, 160))
 
         pygame.display.flip()
-
-    game_over_screen(score, soin, snips)
 
 if __name__ == "__main__":
     main()
